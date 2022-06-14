@@ -1,0 +1,331 @@
+/*eslint no-unused-vars: "warn"*/
+
+const { VERSIONS } = require('@asymmetrik/node-fhir-server-core').constants;
+const { resolveSchema } = require('@asymmetrik/node-fhir-server-core');
+const FHIRServer = require('@asymmetrik/node-fhir-server-core');
+const { ObjectID } = require('mongodb');
+const logger = require('@asymmetrik/node-fhir-server-core').loggers.get();
+
+const globals = require('../../globals');
+const { COLLECTION, CLIENT_DB } = require('../../constants');
+
+let getMedication = (base_version) => {
+  return resolveSchema(base_version, 'Medication');
+};
+
+let getMeta = (base_version) => {
+  return resolveSchema(base_version, 'Meta');
+};
+
+module.exports.count = (args) =>
+  new Promise((resolve, reject) => {
+    logger.info('Medication >>> count');
+
+    let db = globals.get(CLIENT_DB);
+    let collection = db.collection(`${COLLECTION.MEDICATION}`);
+
+    collection.countDocuments({}, (err, data) => {
+      if (err) {
+        logger.error('Error with Medication.count: ', err);
+        return reject(err);
+      }
+      return resolve(data);
+    });
+  });
+
+// module.exports.search = (args) =>
+//   new Promise((resolve, reject) => {
+//     logger.info('Medication >>> search');
+
+//     // Common search params
+//     let {
+//       base_version,
+//       _content,
+//       _format,
+//       _id,
+//       _lastUpdated,
+//       _profile,
+//       _query,
+//       _security,
+//       _tag,
+//     } = args;
+
+//     // Search Result params
+//     let {
+//       _INCLUDE,
+//       _REVINCLUDE,
+//       _SORT,
+//       _COUNT,
+//       _SUMMARY,
+//       _ELEMENTS,
+//       _CONTAINED,
+//       _CONTAINEDTYPED,
+//     } = args;
+
+//     // Resource Specific params
+//     let code = args['code'];
+//     let container = args['container'];
+//     let form = args['form'];
+//     let ingredient = args['ingredient'];
+//     let ingredient_code = args['ingredient-code'];
+//     let manufacturer = args['manufacturer'];
+//     let over_the_counter = args['over-the-counter'];
+//     let package_item = args['package-item'];
+//     let package_item_code = args['package-item-code'];
+//     let status = args['status'];
+
+//     // TODO: Build query from Parameters
+
+//     // TODO: Query database
+
+//     let Medication = getMedication(base_version);
+
+//     // Cast all results to Medication Class
+//     let medication_resource = new Medication();
+//     // TODO: Set data with constructor or setter methods
+//     medication_resource.id = 'test id';
+
+//     // Return Array
+//     resolve([medication_resource]);
+//   });
+
+module.exports.search = (args) =>
+  new Promise((resolve, reject) => {
+    logger.info('Medication >>> search');
+
+    let { base_version } = args;
+    let query = {};
+
+    // Grab an instance of our DB and collection
+    let db = globals.get(CLIENT_DB);
+    // let collection = db.collection(`${COLLECTION.PATIENT}_${base_version}`);
+    let collection = db.collection(`${COLLECTION.MEDICATION}`);
+    let Medication = getMedication(base_version);
+
+    // Query our collection for this observation
+    collection.find(query, (err, data) => {
+      if (err) {
+        logger.error('Error with Patient.search: ', err);
+        return reject(err);
+      }
+
+      // Patient is a patient cursor, pull documents out before resolving
+      data.toArray().then((medications) => {
+        medications.forEach(function (element, i, returnArray) {
+          returnArray[i] = new Medication(element);
+        });
+        resolve(medications);
+      });
+    });
+  });
+
+module.exports.searchById = (args) =>
+  new Promise((resolve, reject) => {
+    logger.info('Medication >>> searchById');
+
+    let { base_version, id } = args;
+    let Medication = getMedication(base_version);
+
+    // Grab an instance of our DB and collection
+    let db = globals.get(CLIENT_DB);
+    // let collection = db.collection(`${COLLECTION.PATIENT}_${base_version}`);
+    let collection = db.collection(`${COLLECTION.MEDICATION}`);
+    // Query our collection for this observation
+    collection.findOne({ id: id.toString() }, (err, medication) => {
+      if (err) {
+        logger.error('Error with Medication.searchById: ', err);
+        return reject(err);
+      }
+      if (medication) {
+        resolve(new Medication(medication));
+      }
+      resolve();
+    });
+  });
+
+// module.exports.create = (args, { req }) =>
+//   new Promise((resolve, reject) => {
+//     logger.info('Medication >>> create');
+
+//     let { base_version, resource } = args;
+//     // Make sure to use this ID when inserting this resource
+//     let id = new ObjectID().toString();
+
+//     let Medication = getMedication(base_version);
+//     let Meta = getMeta(base_version);
+
+//     // TODO: determine if client/server sets ID
+
+//     // Cast resource to Medication Class
+//     let medication_resource = new Medication(resource);
+//     medication_resource.meta = new Meta();
+//     // TODO: set meta info
+
+//     // TODO: save record to database
+
+//     // Return Id
+//     resolve({ id });
+//   });
+
+// module.exports.update = (args, { req }) =>
+//   new Promise((resolve, reject) => {
+//     logger.info('Medication >>> update');
+
+//     let { base_version, id, resource } = args;
+
+//     let Medication = getMedication(base_version);
+//     let Meta = getMeta(base_version);
+
+//     // Cast resource to Medication Class
+//     let medication_resource = new Medication(resource);
+//     medication_resource.meta = new Meta();
+//     // TODO: set meta info, increment meta ID
+
+//     // TODO: save record to database
+
+//     // Return id, if recorded was created or updated, new meta version id
+//     resolve({
+//       id: medication_resource.id,
+//       created: false,
+//       resource_version: medication_resource.meta.versionId,
+//     });
+//   });
+
+// module.exports.remove = (args, context) =>
+//   new Promise((resolve, reject) => {
+//     logger.info('Medication >>> remove');
+
+//     let { id } = args;
+
+//     // TODO: delete record in database (soft/hard)
+
+//     // Return number of records deleted
+//     resolve({ deleted: 0 });
+//   });
+
+// module.exports.searchByVersionId = (args, context) =>
+//   new Promise((resolve, reject) => {
+//     logger.info('Medication >>> searchByVersionId');
+
+//     let { base_version, id, version_id } = args;
+
+//     let Medication = getMedication(base_version);
+
+//     // TODO: Build query from Parameters
+
+//     // TODO: Query database
+
+//     // Cast result to Medication Class
+//     let medication_resource = new Medication();
+
+//     // Return resource class
+//     resolve(medication_resource);
+//   });
+
+// module.exports.history = (args, context) =>
+//   new Promise((resolve, reject) => {
+//     logger.info('Medication >>> history');
+
+//     // Common search params
+//     let {
+//       base_version,
+//       _content,
+//       _format,
+//       _id,
+//       _lastUpdated,
+//       _profile,
+//       _query,
+//       _security,
+//       _tag,
+//     } = args;
+
+//     // Search Result params
+//     let {
+//       _INCLUDE,
+//       _REVINCLUDE,
+//       _SORT,
+//       _COUNT,
+//       _SUMMARY,
+//       _ELEMENTS,
+//       _CONTAINED,
+//       _CONTAINEDTYPED,
+//     } = args;
+
+//     // Resource Specific params
+//     let code = args['code'];
+//     let container = args['container'];
+//     let form = args['form'];
+//     let ingredient = args['ingredient'];
+//     let ingredient_code = args['ingredient-code'];
+//     let manufacturer = args['manufacturer'];
+//     let over_the_counter = args['over-the-counter'];
+//     let package_item = args['package-item'];
+//     let package_item_code = args['package-item-code'];
+//     let status = args['status'];
+
+//     // TODO: Build query from Parameters
+
+//     // TODO: Query database
+
+//     let Medication = getMedication(base_version);
+
+//     // Cast all results to Medication Class
+//     let medication_resource = new Medication();
+
+//     // Return Array
+//     resolve([medication_resource]);
+//   });
+
+// module.exports.historyById = (args, context) =>
+//   new Promise((resolve, reject) => {
+//     logger.info('Medication >>> historyById');
+
+//     // Common search params
+//     let {
+//       base_version,
+//       _content,
+//       _format,
+//       _id,
+//       _lastUpdated,
+//       _profile,
+//       _query,
+//       _security,
+//       _tag,
+//     } = args;
+
+//     // Search Result params
+//     let {
+//       _INCLUDE,
+//       _REVINCLUDE,
+//       _SORT,
+//       _COUNT,
+//       _SUMMARY,
+//       _ELEMENTS,
+//       _CONTAINED,
+//       _CONTAINEDTYPED,
+//     } = args;
+
+//     // Resource Specific params
+//     let code = args['code'];
+//     let container = args['container'];
+//     let form = args['form'];
+//     let ingredient = args['ingredient'];
+//     let ingredient_code = args['ingredient-code'];
+//     let manufacturer = args['manufacturer'];
+//     let over_the_counter = args['over-the-counter'];
+//     let package_item = args['package-item'];
+//     let package_item_code = args['package-item-code'];
+//     let status = args['status'];
+
+//     // TODO: Build query from Parameters
+
+//     // TODO: Query database
+
+//     let Medication = getMedication(base_version);
+
+//     // Cast all results to Medication Class
+//     let medication_resource = new Medication();
+
+//     // Return Array
+//     resolve([medication_resource]);
+//   });
